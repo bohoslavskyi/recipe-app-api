@@ -1,9 +1,11 @@
-name: recipe-app-api
+name: recipe-api
 
 services:
   app:
     build:
       context: .
+      args:
+        - DEV=true
     ports:
       - "8000:8000"
     volumes:
