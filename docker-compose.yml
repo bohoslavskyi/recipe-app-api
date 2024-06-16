@@ -12,3 +12,56 @@ services:
       - ./app:/app
     command:
       sh -c "python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DB_NAME: recipe_db
+      DB_USER: user
+      DB_PASSWORD: changeme
+      DB_HOST: postgres
+      DB_PORT: 5432
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - recipe-api-network
+  
+  postgres-admin:
+    image: dpage/pgadmin4:8.8
+    restart: always
+    ports:
+      - 8888:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: user@mail.com
+      PGADMIN_DEFAULT_PASSWORD: changeme
+    volumes:
+      - pg-admin-data:/var/lib/pgadmin
+    networks:
+      - recipe-api-network
+    depends_on:
+        postgres:
+          condition: service_healthy
+  
+  postgres:
+    image: postgres:16.3-alpine3.20
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: recipe_db
+    volumes:
+      - pg-data:/var/lib/postgres/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d recipe_db -U user" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - recipe-api-network
+
+volumes:
+  pg-data:
+  pg-admin-data:
+
+networks:
+  recipe-api-network:
