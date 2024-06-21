@@ -37,4 +37,8 @@ urlpatterns = [
         route='api/user/',
         view=include('user.urls')
     ),
+    path(
+        route='api/recipes/',
+        view=include('recipe.urls')
+    ),
 ]
