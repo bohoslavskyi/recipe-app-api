@@ -1,4 +1,17 @@
-from django.db import models
+from decimal import Decimal
+
+from django.conf import settings
+from django.db.models import (
+    Model,
+    CharField,
+    TextField,
+    IntegerField,
+    BooleanField,
+    DecimalField,
+    EmailField,
+    ForeignKey,
+    CASCADE,
+)
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
@@ -30,11 +43,23 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(max_length=255, unique=True)
-    name = models.CharField(max_length=255)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    email: str|EmailField = EmailField(max_length=255, unique=True)
+    name: str|CharField = CharField(max_length=255)
+    is_active: bool|BooleanField = BooleanField(default=True)
+    is_staff: bool|BooleanField = BooleanField(default=False)
 
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
+
+
+class Recipe(Model):
+    user: User|ForeignKey = ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=CASCADE)
+    title: str|CharField = CharField(max_length=255)
+    description: str|TextField = TextField(blank=True)
+    time_minutes: int|IntegerField = IntegerField()
+    price: Decimal|DecimalField = DecimalField(max_digits=5, decimal_places=2)
+    link: str|CharField = CharField(max_length=255, blank=True)
+
+    def __str__(self) -> str:
+        return self.title
