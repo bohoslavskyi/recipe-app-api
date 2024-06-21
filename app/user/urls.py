@@ -6,5 +6,6 @@ from user import views
 app_name = 'user'
 urlpatterns = [
     path(route='create/', view=views.CreateUserView.as_view(), name='create'),
-    path(route='token/', view=views.CreateTokenView.as_view(), name='token')
+    path(route='token/', view=views.CreateTokenView.as_view(), name='token'),
+    path(route='me/', view=views.ManagerUserView.as_view(), name='me'),
 ]

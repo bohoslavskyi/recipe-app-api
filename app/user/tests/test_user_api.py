@@ -9,7 +9,8 @@ from core.models import User
 
 
 CREATE_USER_URL = reverse('user:create')
-CREATE_TOKEN_URL = reverse('user:token')
+TOKEN_URL = reverse('user:token')
+ME_URL = reverse('user:me')
 
 
 def create_user(**params) -> User:
@@ -68,11 +69,11 @@ class PublicUserAPITest(TestCase):
             'email': user_details['email'],
             'password': user_details['password'],
         }
-        response = self.client.post(CREATE_TOKEN_URL, payload)
+        response = self.client.post(TOKEN_URL, payload)
 
         self.assertIn('token', response.data)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-    
+
     def test_create_token_bad_credentials(self) -> None:
         user_details: dict = {
             'name': 'Test Name',
@@ -85,17 +86,59 @@ class PublicUserAPITest(TestCase):
             'email': user_details['email'],
             'password': 'test-user-bad-password-123',
         }
-        response = self.client.post(CREATE_TOKEN_URL, payload)
+        response = self.client.post(TOKEN_URL, payload)
 
         self.assertNotIn('token', response.data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-    
+
     def test_create_token_blank_password(self) -> None:
         payload: dict = {
             'email': 'test@example.com',
             'password': '',
         }
-        response = self.client.post(CREATE_TOKEN_URL, payload)
+        response = self.client.post(TOKEN_URL, payload)
 
         self.assertNotIn('token', response.data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_retrieve_user_unauthorized(self) -> None:
+        response = self.client.get(ME_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PrivateUserAPITest(TestCase):
+    def setUp(self) -> None:
+        self.user: User = create_user(
+            email='test@example.com',
+            password='testpass123',
+            name='Test Name',
+        )
+        self.client: APIClient = APIClient()
+        self.client.force_authenticate(user=self.user)
+
+    def test_retrieve_profile_success(self) -> None:
+        response = self.client.get(ME_URL)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {
+            'email': self.user.email,
+            'name': self.user.name,
+        })
+
+    def test_post_me_not_allowed(self) -> None:
+        response = self.client.post(ME_URL, {})
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def test_update_user_profile(self) -> None:
+        payload: dict = {
+            'name': 'Updated Name',
+            'password': 'newpassword123'
+        }
+        response = self.client.patch(ME_URL, payload)
+
+        self.user.refresh_from_db()
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.user.name, payload['name'])
+        self.assertTrue(self.user.check_password(payload['password']))
