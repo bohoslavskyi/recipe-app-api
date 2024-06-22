@@ -1,9 +1,7 @@
 from decimal import Decimal
-from django.contrib.auth import get_user_model
-from django.test import TestCase
+
 from django.urls import reverse
 from django.http import HttpResponse
-
 from rest_framework import status
 from rest_framework.test import APIClient
 
@@ -12,6 +10,7 @@ from recipe.serializers import (
     RecipeSerializer,
     RecipeDetailSerializer,
 )
+from recipe.tests.base import BaseTestCase
 
 
 RECIPES_URL = reverse('recipe:recipe-list')
@@ -21,24 +20,7 @@ def detail_url(recipe_id: int) -> str:
     return reverse('recipe:recipe-detail', args=[recipe_id])
 
 
-def create_recipe(user: User, **params: dict) -> Recipe:
-    defaults: dict = {
-        'title': 'Sample recipe title',
-        'description': 'Sample recipe description',
-        'price': Decimal('5.49'),
-        'time_minutes': 25,
-        'link': 'http://example.com/recipe.pdf',
-    }
-    defaults.update(params)
-
-    return Recipe.objects.create(user=user, **defaults)
-
-
-def create_user(**params: dict) -> User:
-    return get_user_model().objects.create_user(**params)
-
-
-class PublicRecipeAPItests(TestCase):
+class PublicRecipeAPItests(BaseTestCase):
     def setUp(self) -> None:
         self.client: APIClient = APIClient()
 
@@ -48,18 +30,15 @@ class PublicRecipeAPItests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class PrivateRecipeAPITests(TestCase):
+class PrivateRecipeAPITests(BaseTestCase):
     def setUp(self) -> None:
         self.client: APIClient = APIClient()
-        self.user: User = create_user(
-            email='test@example.com',
-            password='testpass123',
-        )
+        self.user: User = self.create_user()
         self.client.force_authenticate(user=self.user)
 
     def test_retrieve_recipes(self) -> None:
-        create_recipe(user=self.user)
-        create_recipe(user=self.user)
+        self.create_recipe(user=self.user)
+        self.create_recipe(user=self.user)
 
         response: HttpResponse = self.client.get(RECIPES_URL)
         recipes: list[Recipe] = Recipe.objects.all().order_by('-id')
@@ -69,12 +48,12 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(response.data, serializer.data)
 
     def test_recipe_list_limited_to_user(self) -> None:
-        other_user: User = create_user(
+        other_user: User = self.create_user(
             email='other@example.com',
             password='testpass123',
         )
-        create_recipe(user=other_user)
-        create_recipe(user=self.user)
+        self.create_recipe(user=other_user)
+        self.create_recipe(user=self.user)
 
         response: HttpResponse = self.client.get(RECIPES_URL)
         recipes: list[Recipe] = Recipe.objects.filter(user=self.user)
@@ -84,7 +63,7 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(response.data, serializer.data)
 
     def test_get_recipe_detail(self) -> None:
-        recipe: Recipe = create_recipe(user=self.user)
+        recipe: Recipe = self.create_recipe(user=self.user)
         url: str = detail_url(recipe.id)
         response: HttpResponse = self.client.get(url)
         serializer: RecipeDetailSerializer = RecipeDetailSerializer(recipe)
@@ -108,7 +87,7 @@ class PrivateRecipeAPITests(TestCase):
 
     def test_pastial_update(self) -> None:
         original_link: str = 'http://example.com/recipe.pdf'
-        recipe: Recipe = create_recipe(
+        recipe: Recipe = self.create_recipe(
             user=self.user,
             title='Sample recipe title',
             link=original_link,
@@ -126,7 +105,7 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(recipe.link, original_link)
 
     def test_full_update(self) -> None:
-        recipe: Recipe = create_recipe(user=self.user)
+        recipe: Recipe = self.create_recipe(user=self.user)
         payload: dict = {
             'title': 'New sample recipe title',
             'description': 'New sample recipe description',
@@ -145,11 +124,11 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(recipe.user, self.user)
 
     def test_update_user_returns_error(self) -> None:
-        new_user: User = create_user(
+        new_user: User = self.create_user(
             email='new.user@example.com',
             password='testpass123',
         )
-        recipe: Recipe = create_recipe(user=self.user)
+        recipe: Recipe = self.create_recipe(user=self.user)
         payload: dict = {
             'user': new_user.id,
         }
@@ -161,7 +140,7 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(recipe.user, self.user)
 
     def test_delete_recipe(self) -> None:
-        recipe: Recipe = create_recipe(user=self.user)
+        recipe: Recipe = self.create_recipe(user=self.user)
         url = detail_url(recipe.id)
         response: HttpResponse = self.client.delete(url)
 
