@@ -10,6 +10,7 @@ from django.db.models import (
     DecimalField,
     EmailField,
     ForeignKey,
+    ManyToManyField,
     CASCADE,
 )
 from django.contrib.auth.models import (
@@ -53,6 +54,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
 
 
+class Tag(Model):
+    name: str|CharField = CharField(max_length=255)
+    user: User|ForeignKey = ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=CASCADE)
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Recipe(Model):
     user: User|ForeignKey = ForeignKey(to=settings.AUTH_USER_MODEL, on_delete=CASCADE)
     title: str|CharField = CharField(max_length=255)
@@ -60,6 +69,7 @@ class Recipe(Model):
     time_minutes: int|IntegerField = IntegerField()
     price: Decimal|DecimalField = DecimalField(max_digits=5, decimal_places=2)
     link: str|CharField = CharField(max_length=255, blank=True)
+    tags: list[Tag]|ManyToManyField = ManyToManyField(to='Tag')
 
     def __str__(self) -> str:
         return self.title
