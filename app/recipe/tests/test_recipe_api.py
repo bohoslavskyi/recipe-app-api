@@ -7,10 +7,17 @@ from rest_framework import status
 from rest_framework.test import APIClient
 
 from core.models import Recipe, User
-from recipe.serializers import RecipeSerializer
+from recipe.serializers import (
+    RecipeSerializer,
+    RecipeDetailSerializer,
+)
 
 
 RECIPES_URL = reverse('recipe:recipe-list')
+
+
+def detail_url(recipe_id: int) -> str:
+    return reverse('recipe:recipe-detail', args=[recipe_id])
 
 
 def create_recipe(user: User, **params: dict) -> Recipe:
@@ -23,7 +30,7 @@ def create_recipe(user: User, **params: dict) -> Recipe:
     }
     defaults.update(params)
 
-    return Recipe(user=user, **defaults)
+    return Recipe.objects.create(user=user, **defaults)
 
 
 class PublicRecipeAPItests(TestCase):
@@ -67,6 +74,16 @@ class PrivateRecipeAPITests(TestCase):
         response = self.client.get(RECIPES_URL)
         recipes: list[Recipe] = Recipe.objects.filter(user=self.user)
         serializer: RecipeSerializer = RecipeSerializer(recipes, many=True)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
+
+    def test_get_recipe_detail(self) -> None:
+        recipe: Recipe = create_recipe(user=self.user)
+        recipe.save()
+        url: str = detail_url(recipe.id)
+        response = self.client.get(url)
+        serializer: RecipeDetailSerializer = RecipeDetailSerializer(recipe)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, serializer.data)
