@@ -12,6 +12,10 @@ from recipe.tests.base import BaseTestCase
 TAGS_URL = reverse('recipe:tag-list')
 
 
+def detail_url(tag_id: int) -> str:
+    return reverse('recipe:tag-detail', args=[tag_id])
+
+
 class PublicTagAPITests(BaseTestCase):
     def setUp(self) -> None:
         self.client: APIClient = APIClient()
@@ -49,3 +53,14 @@ class PrivateTagAPITest(BaseTestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['id'], tag.id)
         self.assertEqual(response.data[0]['name'], tag.name)
+
+    def test_update_tag(self) -> None:
+        tag: Tag = self.create_tag(name='After Dinner', user=self.user)
+        payload: dict = {'name': 'Dessert'}
+        url: str = detail_url(tag.id)
+        response: HttpResponse = self.client.patch(url, payload)
+        serializer: TagSerializer = TagSerializer(tag)
+        tag.refresh_from_db()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, serializer.data)
